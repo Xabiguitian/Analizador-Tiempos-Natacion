@@ -1,0 +1,4 @@
+([('SwimAnalytics',
+   '/Users/mac1/Library/CloudStorage/OneDrive-UniversidadedaCoruña/Proyectos '
+   'programacion/Analizador-Tiempos-Natacion/dist/SwimAnalytics',
+   'EXECUTABLE')],)
