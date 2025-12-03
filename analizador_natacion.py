@@ -14,7 +14,7 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics PRO - FEGAN Edition")
+        self.root.title("SwimAnalytics")
         self.root.geometry("1300x850")
         
         # --- CONFIGURACIÓN PARA MAC ---
@@ -54,7 +54,7 @@ class NatacionApp:
         header.pack(side=tk.TOP, fill=tk.X)
         header.pack_propagate(False)
 
-        lbl_title = tk.Label(header, text="🏊 SwimAnalytics PRO", 
+        lbl_title = tk.Label(header, text="SwimAnalytics", 
                              font=("Helvetica", 20, "bold"), 
                              bg=self.bg_dark, fg="white")
         lbl_title.pack(side=tk.LEFT, padx=20)
