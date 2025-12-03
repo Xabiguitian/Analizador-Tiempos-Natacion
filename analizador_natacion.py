@@ -12,7 +12,7 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics PRO - Filtrado Avanzado")
+        self.root.title("SwimAnalytics PRO - Multi Distancia")
         self.root.geometry("1300x850")
         
         # --- CONFIGURACIÓN PARA MAC (Modo Claro Forzado) ---
@@ -20,28 +20,24 @@ class NatacionApp:
         self.style = ttk.Style()
         self.style.theme_use('clam')
         
-        # Colores de interfaz
+        # Colores
         self.bg_dark = "#2c3e50"
         self.bg_light = "#ecf0f1"
         self.accent = "#2980b9"
         
-        # --- Variables de Datos ---
-        self.df_original = None # Aquí guardamos TODO el archivo
-        self.df_filtered = None # Aquí guardamos lo que se ve en pantalla
+        # --- Variables ---
+        self.df_original = None 
+        self.df_filtered = None
         
-        # --- Variables de Filtros ---
         self.var_tipo = tk.StringVar(value="Solo Finales (N)")
         self.var_club = tk.StringVar(value="Todos")
         self.var_fecha_inicio = tk.StringVar()
         self.var_fecha_fin = tk.StringVar()
 
-        # --- Interfaz Gráfica ---
+        # --- Interfaz ---
         self.create_header()
-        
-        # Contenedor principal (divide filtros y gráficos)
         self.main_container = tk.Frame(self.root, bg="white")
         self.main_container.pack(fill=tk.BOTH, expand=True)
-        
         self.create_sidebar()
         self.create_dashboard()
 
@@ -61,16 +57,14 @@ class NatacionApp:
         btn_load.pack(side=tk.RIGHT, padx=20, pady=15)
 
     def create_sidebar(self):
-        # Panel lateral para filtros
         sidebar = tk.Frame(self.main_container, bg=self.bg_light, width=250, padx=15, pady=15)
         sidebar.pack(side=tk.LEFT, fill=tk.Y)
         sidebar.pack_propagate(False)
 
-        # Título Filtros
         tk.Label(sidebar, text="FILTROS", font=("Arial", 12, "bold"), 
                  bg=self.bg_light, fg="#7f8c8d").pack(anchor="w", pady=(0, 10))
 
-        # 1. Filtro Tipo (Parcial vs Final)
+        # 1. Filtro Tipo
         tk.Label(sidebar, text="Tipo de Tiempo:", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         self.combo_tipo = ttk.Combobox(sidebar, textvariable=self.var_tipo, state="readonly", 
                                        values=["Todos", "Solo Finales (N)", "Solo Parciales (S)"])
@@ -92,35 +86,55 @@ class NatacionApp:
         entry_end = tk.Entry(sidebar, textvariable=self.var_fecha_fin, bg="white", fg="black")
         entry_end.pack(fill=tk.X, pady=(0, 15))
 
-        # Botón Aplicar
         btn_apply = tk.Button(sidebar, text="Aplicar Filtros", command=self.apply_filters,
                               bg=self.accent, fg="white", font=("Arial", 11, "bold"), pady=5)
         btn_apply.pack(fill=tk.X, pady=20)
         
-        # Información rápida
         self.lbl_info_count = tk.Label(sidebar, text="Registros: 0", bg=self.bg_light, fg="#7f8c8d")
         self.lbl_info_count.pack(side=tk.BOTTOM)
 
     def create_dashboard(self):
-        # Área derecha (Gráficos y Stats)
         self.dashboard_frame = tk.Frame(self.main_container, bg="white")
         self.dashboard_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Panel de Estadísticas (Arriba)
         self.stats_frame = tk.Frame(self.dashboard_frame, bg="#f9f9f9", height=120, bd=1, relief=tk.SOLID)
         self.stats_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
         self.stats_frame.pack_propagate(False)
         
-        # Etiquetas de estadísticas (Placeholders)
         self.lbl_stat_25 = tk.Label(self.stats_frame, text="PB 25m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
         self.lbl_stat_25.pack(side=tk.LEFT, expand=True)
         
         self.lbl_stat_50 = tk.Label(self.stats_frame, text="PB 50m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
         self.lbl_stat_50.pack(side=tk.LEFT, expand=True)
 
-        # Área de Gráficos (Abajo)
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    # --- FUNCIÓN NUEVA: Convierte "1:09.50" o "27.00" a segundos (float) ---
+    def convert_time_to_seconds(self, time_str):
+        try:
+            time_str = str(time_str).strip()
+            if ':' in time_str:
+                # Formato Minutos:Segundos.Centésimas (ej: 1:09.50)
+                parts = time_str.split(':')
+                minutes = float(parts[0])
+                seconds = float(parts[1])
+                return minutes * 60 + seconds
+            else:
+                # Formato solo Segundos (ej: 27.00)
+                return float(time_str)
+        except:
+            return None # Si falla, devuelve vacío
+
+    def format_seconds_to_time(self, seconds):
+        # Convierte segundos de vuelta a texto bonito para el gráfico
+        if pd.isna(seconds): return "--"
+        m = int(seconds // 60)
+        s = seconds % 60
+        if m > 0:
+            return f"{m}:{s:05.2f}" # Ej: 1:09.50
+        else:
+            return f"{s:.2f}" # Ej: 27.00
 
     def load_csv(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
@@ -130,11 +144,16 @@ class NatacionApp:
             col_names = ['Licencia', 'Nombre', 'AnoNacimiento', 'Club', 'Prueba', 'Tiempo', 'InfoPiscina', 'Fecha', 'Lugar', 'CodigoExtra']
             df = pd.read_csv(file_path, header=None, names=col_names)
 
-            # Preprocesamiento
+            # 1. Limpieza de Fecha
             df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y%m%d', errors='coerce')
-            df['Tiempo'] = pd.to_numeric(df['Tiempo'], errors='coerce')
             
-            # Limpiar columna de códigos (quitar espacios)
+            # 2. Limpieza de Tiempo (USANDO LA NUEVA FUNCIÓN)
+            df['Tiempo'] = df['Tiempo'].apply(self.convert_time_to_seconds)
+            
+            # Eliminar filas donde el tiempo no se pudo leer
+            df = df.dropna(subset=['Tiempo'])
+
+            # 3. Limpieza códigos
             if 'CodigoExtra' in df.columns:
                 df['CodigoExtra'] = df['CodigoExtra'].astype(str).str.strip()
 
@@ -147,19 +166,15 @@ class NatacionApp:
             df['TipoPiscina'] = df['InfoPiscina'].apply(clasificar_piscina)
             df = df.sort_values('Fecha')
 
-            # Guardar en variable ORIGINAL
             self.df_original = df
             
-            # --- Actualizar Dropdown de Clubes ---
-            clubes = sorted(df['Club'].unique().tolist())
+            # Actualizar filtros UI
+            clubes = sorted(df['Club'].astype(str).unique().tolist())
             self.combo_club['values'] = ["Todos"] + clubes
-            self.var_club.set("Todos") # Resetear selección
-            
-            # Resetear fechas
+            self.var_club.set("Todos")
             self.var_fecha_inicio.set("")
             self.var_fecha_fin.set("")
 
-            # Aplicar filtros iniciales
             self.apply_filters()
             
         except Exception as e:
@@ -170,37 +185,29 @@ class NatacionApp:
 
         df = self.df_original.copy()
 
-        # 1. Filtro Tipo (N vs S)
+        # Filtros
         tipo = self.var_tipo.get()
         if tipo == "Solo Finales (N)":
             df = df[df['CodigoExtra'] == 'N']
         elif tipo == "Solo Parciales (S)":
             df = df[df['CodigoExtra'] == 'S']
-        # Si es "Todos", no filtramos nada aquí
 
-        # 2. Filtro Club
         club = self.var_club.get()
         if club != "Todos":
             df = df[df['Club'] == club]
 
-        # 3. Filtro Fechas
         f_inicio = self.var_fecha_inicio.get()
         f_fin = self.var_fecha_fin.get()
 
         try:
             if f_inicio:
-                date_start = pd.to_datetime(f_inicio)
-                df = df[df['Fecha'] >= date_start]
+                df = df[df['Fecha'] >= pd.to_datetime(f_inicio)]
             if f_fin:
-                date_end = pd.to_datetime(f_fin)
-                df = df[df['Fecha'] <= date_end]
+                df = df[df['Fecha'] <= pd.to_datetime(f_fin)]
         except:
-            messagebox.showwarning("Fechas Incorrectas", "Usa el formato AAAA-MM-DD (ej: 2023-01-01)")
+            pass
 
-        # Guardar resultado filtrado
         self.df_filtered = df
-        
-        # Actualizar UI
         self.lbl_info_count.config(text=f"Registros visibles: {len(df)}")
         self.update_stats()
         self.update_plots()
@@ -211,21 +218,23 @@ class NatacionApp:
             self.lbl_stat_50.config(text="PB 50m: --")
             return
 
-        # Calcular mejores tiempos sobre la data FILTRADA
         df_25 = self.df_filtered[self.df_filtered['TipoPiscina'] == '25m']
         df_50 = self.df_filtered[self.df_filtered['TipoPiscina'] == '50m']
 
-        pb_25 = f"{df_25['Tiempo'].min():.2f}s" if not df_25.empty else "--"
-        pb_50 = f"{df_50['Tiempo'].min():.2f}s" if not df_50.empty else "--"
+        # Usamos el formateador para mostrar el tiempo bonito en las stats
+        min_25 = df_25['Tiempo'].min()
+        min_50 = df_50['Tiempo'].min()
+        
+        pb_25 = self.format_seconds_to_time(min_25)
+        pb_50 = self.format_seconds_to_time(min_50)
 
-        # Nombre del nadador (tomado del primer registro disponible)
         nadador = self.df_filtered['Nombre'].iloc[0] if not self.df_filtered.empty else "Desconocido"
+        prueba = self.df_filtered['Prueba'].iloc[0] if not self.df_filtered.empty else ""
 
-        self.lbl_stat_25.config(text=f"🏊 {nadador}\nPB 25m: {pb_25}")
+        self.lbl_stat_25.config(text=f"🏊 {nadador} ({prueba})\nPB 25m: {pb_25}")
         self.lbl_stat_50.config(text=f"\nPB 50m: {pb_50}")
 
     def update_plots(self):
-        # Limpiar
         for widget in self.plot_container.winfo_children():
             widget.destroy()
 
@@ -233,36 +242,35 @@ class NatacionApp:
             tk.Label(self.plot_container, text="No hay datos con estos filtros", bg="white", fg="red").pack(pady=50)
             return
 
-        # Figura
         fig = plt.Figure(figsize=(8, 6), dpi=100, facecolor='white')
         ax = fig.add_subplot(111)
-
-        # Colores
         colors = {'25m': '#2980b9', '50m': '#e67e22', 'Otros': 'gray'}
 
-        # Graficar líneas separadas por tipo de piscina
         for piscina in ['25m', '50m']:
             data = self.df_filtered[self.df_filtered['TipoPiscina'] == piscina]
             if not data.empty:
                 ax.plot(data['Fecha'], data['Tiempo'], marker='o', linestyle='-', 
                         label=f'Piscina {piscina}', color=colors.get(piscina))
                 
-                # Opcional: Añadir etiquetas de texto a los mejores puntos
-                min_idx = data['Tiempo'].idxmin()
+                # Etiqueta de mejor marca en el gráfico
+                min_idx = data['Tiempo'].idxmin() # Ahora esto ya no fallará porque Tiempo es float
                 best_row = data.loc[min_idx]
-                ax.annotate(f"{best_row['Tiempo']}", 
+                
+                # Formatear la etiqueta del gráfico (volver a MM:SS si es necesario)
+                tiempo_str = self.format_seconds_to_time(best_row['Tiempo'])
+                
+                ax.annotate(f"{tiempo_str}", 
                             (best_row['Fecha'], best_row['Tiempo']),
                             textcoords="offset points", xytext=(0,10), ha='center',
-                            fontsize=8, color=colors.get(piscina))
+                            fontsize=9, weight='bold', color=colors.get(piscina))
 
-        ax.set_title("Evolución de Tiempos (Datos Filtrados)", fontsize=12, fontweight='bold', color='black')
-        ax.set_ylabel("Tiempo (s)", color='black')
+        ax.set_title("Evolución de Tiempos", fontsize=12, fontweight='bold', color='black')
+        ax.set_ylabel("Tiempo (segundos)", color='black')
         ax.tick_params(colors='black')
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
         ax.set_facecolor('#f9f9f9')
 
-        # Insertar en Tkinter
         canvas = FigureCanvasTkAgg(fig, master=self.plot_container)
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
