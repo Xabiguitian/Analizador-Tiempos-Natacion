@@ -3,6 +3,8 @@ from tkinter import filedialog, ttk, messagebox
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import FuncFormatter
+import matplotlib.dates as mdates
 import seaborn as sns
 from datetime import datetime
 
@@ -12,10 +14,10 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics PRO - Multi Distancia")
+        self.root.title("SwimAnalytics PRO - Edición Mac")
         self.root.geometry("1300x850")
         
-        # --- CONFIGURACIÓN PARA MAC (Modo Claro Forzado) ---
+        # --- CONFIGURACIÓN PARA MAC ---
         self.root.configure(bg="white")
         self.style = ttk.Style()
         self.style.theme_use('clam')
@@ -51,8 +53,9 @@ class NatacionApp:
                              bg=self.bg_dark, fg="white")
         lbl_title.pack(side=tk.LEFT, padx=20)
 
+        # CAMBIO: Texto negro (fg="black") para mejorar legibilidad
         btn_load = tk.Button(header, text="📂 Cargar CSV", command=self.load_csv, 
-                             bg="#27ae60", fg="white", 
+                             bg="#27ae60", fg="black", 
                              font=("Arial", 11, "bold"), relief=tk.FLAT, padx=15)
         btn_load.pack(side=tk.RIGHT, padx=20, pady=15)
 
@@ -75,8 +78,8 @@ class NatacionApp:
         self.combo_club = ttk.Combobox(sidebar, textvariable=self.var_club, state="readonly", values=["Todos"])
         self.combo_club.pack(fill=tk.X, pady=(0, 15))
 
-        # 3. Filtro Fechas
-        tk.Label(sidebar, text="Rango de Fechas (AAAA-MM-DD):", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
+        # 3. Filtro Fechas (CAMBIO: Formato DD/MM/AAAA)
+        tk.Label(sidebar, text="Rango de Fechas (DD/MM/AAAA):", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         
         tk.Label(sidebar, text="Desde:", bg=self.bg_light, fg="#555").pack(anchor="w")
         entry_start = tk.Entry(sidebar, textvariable=self.var_fecha_inicio, bg="white", fg="black")
@@ -86,8 +89,9 @@ class NatacionApp:
         entry_end = tk.Entry(sidebar, textvariable=self.var_fecha_fin, bg="white", fg="black")
         entry_end.pack(fill=tk.X, pady=(0, 15))
 
+        # CAMBIO: Texto negro en botón aplicar
         btn_apply = tk.Button(sidebar, text="Aplicar Filtros", command=self.apply_filters,
-                              bg=self.accent, fg="white", font=("Arial", 11, "bold"), pady=5)
+                              bg=self.accent, fg="black", font=("Arial", 11, "bold"), pady=5)
         btn_apply.pack(fill=tk.X, pady=20)
         
         self.lbl_info_count = tk.Label(sidebar, text="Registros: 0", bg=self.bg_light, fg="#7f8c8d")
@@ -110,31 +114,28 @@ class NatacionApp:
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-    # --- FUNCIÓN NUEVA: Convierte "1:09.50" o "27.00" a segundos (float) ---
+    # --- UTILIDADES DE TIEMPO ---
     def convert_time_to_seconds(self, time_str):
         try:
             time_str = str(time_str).strip()
             if ':' in time_str:
-                # Formato Minutos:Segundos.Centésimas (ej: 1:09.50)
                 parts = time_str.split(':')
                 minutes = float(parts[0])
                 seconds = float(parts[1])
                 return minutes * 60 + seconds
             else:
-                # Formato solo Segundos (ej: 27.00)
                 return float(time_str)
         except:
-            return None # Si falla, devuelve vacío
+            return None 
 
     def format_seconds_to_time(self, seconds):
-        # Convierte segundos de vuelta a texto bonito para el gráfico
         if pd.isna(seconds): return "--"
         m = int(seconds // 60)
         s = seconds % 60
         if m > 0:
-            return f"{m}:{s:05.2f}" # Ej: 1:09.50
+            return f"{m}:{s:05.2f}"
         else:
-            return f"{s:.2f}" # Ej: 27.00
+            return f"{s:.2f}"
 
     def load_csv(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
@@ -144,16 +145,14 @@ class NatacionApp:
             col_names = ['Licencia', 'Nombre', 'AnoNacimiento', 'Club', 'Prueba', 'Tiempo', 'InfoPiscina', 'Fecha', 'Lugar', 'CodigoExtra']
             df = pd.read_csv(file_path, header=None, names=col_names)
 
-            # 1. Limpieza de Fecha
+            # Limpieza de Fecha
             df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y%m%d', errors='coerce')
             
-            # 2. Limpieza de Tiempo (USANDO LA NUEVA FUNCIÓN)
+            # Limpieza de Tiempo
             df['Tiempo'] = df['Tiempo'].apply(self.convert_time_to_seconds)
-            
-            # Eliminar filas donde el tiempo no se pudo leer
             df = df.dropna(subset=['Tiempo'])
 
-            # 3. Limpieza códigos
+            # Limpieza códigos
             if 'CodigoExtra' in df.columns:
                 df['CodigoExtra'] = df['CodigoExtra'].astype(str).str.strip()
 
@@ -168,7 +167,7 @@ class NatacionApp:
 
             self.df_original = df
             
-            # Actualizar filtros UI
+            # Reset UI
             clubes = sorted(df['Club'].astype(str).unique().tolist())
             self.combo_club['values'] = ["Todos"] + clubes
             self.var_club.set("Todos")
@@ -185,7 +184,7 @@ class NatacionApp:
 
         df = self.df_original.copy()
 
-        # Filtros
+        # Filtros básicos
         tipo = self.var_tipo.get()
         if tipo == "Solo Finales (N)":
             df = df[df['CodigoExtra'] == 'N']
@@ -196,16 +195,20 @@ class NatacionApp:
         if club != "Todos":
             df = df[df['Club'] == club]
 
+        # Filtro de Fechas (CAMBIO: Parseo formato DD/MM/AAAA)
         f_inicio = self.var_fecha_inicio.get()
         f_fin = self.var_fecha_fin.get()
 
         try:
             if f_inicio:
-                df = df[df['Fecha'] >= pd.to_datetime(f_inicio)]
+                # dayfirst=True ayuda a interpretar 01/02 como 1 de Febrero
+                date_start = pd.to_datetime(f_inicio, dayfirst=True)
+                df = df[df['Fecha'] >= date_start]
             if f_fin:
-                df = df[df['Fecha'] <= pd.to_datetime(f_fin)]
+                date_end = pd.to_datetime(f_fin, dayfirst=True)
+                df = df[df['Fecha'] <= date_end]
         except:
-            pass
+            messagebox.showwarning("Fechas", "Por favor usa el formato DD/MM/AAAA (Ej: 31/12/2023)")
 
         self.df_filtered = df
         self.lbl_info_count.config(text=f"Registros visibles: {len(df)}")
@@ -221,7 +224,6 @@ class NatacionApp:
         df_25 = self.df_filtered[self.df_filtered['TipoPiscina'] == '25m']
         df_50 = self.df_filtered[self.df_filtered['TipoPiscina'] == '50m']
 
-        # Usamos el formateador para mostrar el tiempo bonito en las stats
         min_25 = df_25['Tiempo'].min()
         min_50 = df_50['Tiempo'].min()
         
@@ -246,17 +248,16 @@ class NatacionApp:
         ax = fig.add_subplot(111)
         colors = {'25m': '#2980b9', '50m': '#e67e22', 'Otros': 'gray'}
 
+        # Graficar
         for piscina in ['25m', '50m']:
             data = self.df_filtered[self.df_filtered['TipoPiscina'] == piscina]
             if not data.empty:
                 ax.plot(data['Fecha'], data['Tiempo'], marker='o', linestyle='-', 
                         label=f'Piscina {piscina}', color=colors.get(piscina))
                 
-                # Etiqueta de mejor marca en el gráfico
-                min_idx = data['Tiempo'].idxmin() # Ahora esto ya no fallará porque Tiempo es float
+                # Anotaciones
+                min_idx = data['Tiempo'].idxmin()
                 best_row = data.loc[min_idx]
-                
-                # Formatear la etiqueta del gráfico (volver a MM:SS si es necesario)
                 tiempo_str = self.format_seconds_to_time(best_row['Tiempo'])
                 
                 ax.annotate(f"{tiempo_str}", 
@@ -264,9 +265,20 @@ class NatacionApp:
                             textcoords="offset points", xytext=(0,10), ha='center',
                             fontsize=9, weight='bold', color=colors.get(piscina))
 
+        # --- CAMBIO: Formato Eje Y (Minutos:Segundos) ---
+        def axis_formatter(x, pos):
+            return self.format_seconds_to_time(x)
+        
+        ax.yaxis.set_major_formatter(FuncFormatter(axis_formatter))
+
+        # --- CAMBIO: Formato Eje X (DD/MM/AAAA) ---
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+        fig.autofmt_xdate(rotation=45) # Rotar fechas para que no se pisen
+
+        # Estética
         ax.set_title("Evolución de Tiempos", fontsize=12, fontweight='bold', color='black')
-        ax.set_ylabel("Tiempo (segundos)", color='black')
-        ax.tick_params(colors='black')
+        ax.set_ylabel("Tiempo", color='black') # Ya no ponemos "(s)" porque el formato es claro
+        ax.tick_params(colors='black', labelcolor='black')
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
         ax.set_facecolor('#f9f9f9')
