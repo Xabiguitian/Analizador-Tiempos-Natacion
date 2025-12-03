@@ -14,7 +14,7 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics PRO - Edición Mac")
+        self.root.title("SwimAnalytics PRO - FEGAN Edition")
         self.root.geometry("1300x850")
         
         # --- CONFIGURACIÓN PARA MAC ---
@@ -53,11 +53,37 @@ class NatacionApp:
                              bg=self.bg_dark, fg="white")
         lbl_title.pack(side=tk.LEFT, padx=20)
 
-        # CAMBIO: Texto negro (fg="black") para mejorar legibilidad
-        btn_load = tk.Button(header, text="📂 Cargar CSV", command=self.load_csv, 
-                             bg="#27ae60", fg="black", 
-                             font=("Arial", 11, "bold"), relief=tk.FLAT, padx=15)
-        btn_load.pack(side=tk.RIGHT, padx=20, pady=15)
+        # Contenedor para los botones (Derecha)
+        btn_frame = tk.Frame(header, bg=self.bg_dark)
+        btn_frame.pack(side=tk.RIGHT, padx=20)
+
+        # --- NUEVO BOTÓN: Instrucciones ---
+        btn_help = tk.Button(btn_frame, text="❓ ¿Cómo obtener el CSV?", command=self.show_instructions,
+                             bg="#f39c12", fg="black", # Naranja para diferenciarlo
+                             font=("Arial", 10, "bold"), relief=tk.FLAT, padx=10, pady=5)
+        btn_help.pack(side=tk.LEFT, padx=10)
+
+        # Botón Cargar
+        btn_load = tk.Button(btn_frame, text="📂 Cargar CSV", command=self.load_csv, 
+                             bg="#27ae60", fg="black", # Verde
+                             font=("Arial", 11, "bold"), relief=tk.FLAT, padx=15, pady=5)
+        btn_load.pack(side=tk.LEFT)
+
+    def show_instructions(self):
+        # Texto explicado paso a paso
+        info_text = (
+            "GUÍA PARA DESCARGAR DATOS DE LA FEGAN:\n\n"
+            "1. Ve a la página web de la FEGAN (fegan.org).\n"
+            "2. Entra en el apartado 'Natación' > 'Consulta de marcas'.\n"
+            "3. En el filtro, busca por 'Apellido Apellido, Nombre'.\n"
+            "4. Selecciona la prueba que quieras analizar.\n"
+            "5. IMPORTANTE: Selecciona un rango de fechas muy amplio para obtener todo el historial.\n"
+            "6. En 'Amosar os primeiros', selecciona el máximo (100) y pulsa ENVIAR.\n"
+            "7. Cuando salgan los datos, baja al final de la página.\n"
+            "8. Pulsa en el enlace: 'Exportar a táboa a CSV'.\n\n"
+            "¡Listo! Ya puedes cargar ese archivo aquí."
+        )
+        messagebox.showinfo("Instrucciones de Importación", info_text)
 
     def create_sidebar(self):
         sidebar = tk.Frame(self.main_container, bg=self.bg_light, width=250, padx=15, pady=15)
@@ -78,7 +104,7 @@ class NatacionApp:
         self.combo_club = ttk.Combobox(sidebar, textvariable=self.var_club, state="readonly", values=["Todos"])
         self.combo_club.pack(fill=tk.X, pady=(0, 15))
 
-        # 3. Filtro Fechas (CAMBIO: Formato DD/MM/AAAA)
+        # 3. Filtro Fechas
         tk.Label(sidebar, text="Rango de Fechas (DD/MM/AAAA):", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         
         tk.Label(sidebar, text="Desde:", bg=self.bg_light, fg="#555").pack(anchor="w")
@@ -89,7 +115,6 @@ class NatacionApp:
         entry_end = tk.Entry(sidebar, textvariable=self.var_fecha_fin, bg="white", fg="black")
         entry_end.pack(fill=tk.X, pady=(0, 15))
 
-        # CAMBIO: Texto negro en botón aplicar
         btn_apply = tk.Button(sidebar, text="Aplicar Filtros", command=self.apply_filters,
                               bg=self.accent, fg="black", font=("Arial", 11, "bold"), pady=5)
         btn_apply.pack(fill=tk.X, pady=20)
@@ -114,7 +139,7 @@ class NatacionApp:
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-    # --- UTILIDADES DE TIEMPO ---
+    # --- UTILIDADES ---
     def convert_time_to_seconds(self, time_str):
         try:
             time_str = str(time_str).strip()
@@ -145,14 +170,10 @@ class NatacionApp:
             col_names = ['Licencia', 'Nombre', 'AnoNacimiento', 'Club', 'Prueba', 'Tiempo', 'InfoPiscina', 'Fecha', 'Lugar', 'CodigoExtra']
             df = pd.read_csv(file_path, header=None, names=col_names)
 
-            # Limpieza de Fecha
             df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y%m%d', errors='coerce')
-            
-            # Limpieza de Tiempo
             df['Tiempo'] = df['Tiempo'].apply(self.convert_time_to_seconds)
             df = df.dropna(subset=['Tiempo'])
 
-            # Limpieza códigos
             if 'CodigoExtra' in df.columns:
                 df['CodigoExtra'] = df['CodigoExtra'].astype(str).str.strip()
 
@@ -167,7 +188,6 @@ class NatacionApp:
 
             self.df_original = df
             
-            # Reset UI
             clubes = sorted(df['Club'].astype(str).unique().tolist())
             self.combo_club['values'] = ["Todos"] + clubes
             self.var_club.set("Todos")
@@ -184,7 +204,7 @@ class NatacionApp:
 
         df = self.df_original.copy()
 
-        # Filtros básicos
+        # Filtros
         tipo = self.var_tipo.get()
         if tipo == "Solo Finales (N)":
             df = df[df['CodigoExtra'] == 'N']
@@ -195,20 +215,19 @@ class NatacionApp:
         if club != "Todos":
             df = df[df['Club'] == club]
 
-        # Filtro de Fechas (CAMBIO: Parseo formato DD/MM/AAAA)
+        # Filtro Fechas (DD/MM/AAAA)
         f_inicio = self.var_fecha_inicio.get()
         f_fin = self.var_fecha_fin.get()
 
         try:
             if f_inicio:
-                # dayfirst=True ayuda a interpretar 01/02 como 1 de Febrero
                 date_start = pd.to_datetime(f_inicio, dayfirst=True)
                 df = df[df['Fecha'] >= date_start]
             if f_fin:
                 date_end = pd.to_datetime(f_fin, dayfirst=True)
                 df = df[df['Fecha'] <= date_end]
         except:
-            messagebox.showwarning("Fechas", "Por favor usa el formato DD/MM/AAAA (Ej: 31/12/2023)")
+            messagebox.showwarning("Fechas", "Por favor usa el formato DD/MM/AAAA")
 
         self.df_filtered = df
         self.lbl_info_count.config(text=f"Registros visibles: {len(df)}")
@@ -248,14 +267,12 @@ class NatacionApp:
         ax = fig.add_subplot(111)
         colors = {'25m': '#2980b9', '50m': '#e67e22', 'Otros': 'gray'}
 
-        # Graficar
         for piscina in ['25m', '50m']:
             data = self.df_filtered[self.df_filtered['TipoPiscina'] == piscina]
             if not data.empty:
                 ax.plot(data['Fecha'], data['Tiempo'], marker='o', linestyle='-', 
                         label=f'Piscina {piscina}', color=colors.get(piscina))
                 
-                # Anotaciones
                 min_idx = data['Tiempo'].idxmin()
                 best_row = data.loc[min_idx]
                 tiempo_str = self.format_seconds_to_time(best_row['Tiempo'])
@@ -265,19 +282,14 @@ class NatacionApp:
                             textcoords="offset points", xytext=(0,10), ha='center',
                             fontsize=9, weight='bold', color=colors.get(piscina))
 
-        # --- CAMBIO: Formato Eje Y (Minutos:Segundos) ---
-        def axis_formatter(x, pos):
-            return self.format_seconds_to_time(x)
-        
+        # Ejes formateados
+        def axis_formatter(x, pos): return self.format_seconds_to_time(x)
         ax.yaxis.set_major_formatter(FuncFormatter(axis_formatter))
-
-        # --- CAMBIO: Formato Eje X (DD/MM/AAAA) ---
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-        fig.autofmt_xdate(rotation=45) # Rotar fechas para que no se pisen
+        fig.autofmt_xdate(rotation=45)
 
-        # Estética
         ax.set_title("Evolución de Tiempos", fontsize=12, fontweight='bold', color='black')
-        ax.set_ylabel("Tiempo", color='black') # Ya no ponemos "(s)" porque el formato es claro
+        ax.set_ylabel("Tiempo", color='black')
         ax.tick_params(colors='black', labelcolor='black')
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.3)
