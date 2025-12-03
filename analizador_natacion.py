@@ -57,20 +57,19 @@ class NatacionApp:
         btn_frame = tk.Frame(header, bg=self.bg_dark)
         btn_frame.pack(side=tk.RIGHT, padx=20)
 
-        # --- NUEVO BOTÓN: Instrucciones ---
+        # Botón Instrucciones
         btn_help = tk.Button(btn_frame, text="❓ ¿Cómo obtener el CSV?", command=self.show_instructions,
-                             bg="#f39c12", fg="black", # Naranja para diferenciarlo
+                             bg="#f39c12", fg="black",
                              font=("Arial", 10, "bold"), relief=tk.FLAT, padx=10, pady=5)
         btn_help.pack(side=tk.LEFT, padx=10)
 
         # Botón Cargar
         btn_load = tk.Button(btn_frame, text="📂 Cargar CSV", command=self.load_csv, 
-                             bg="#27ae60", fg="black", # Verde
+                             bg="#27ae60", fg="black",
                              font=("Arial", 11, "bold"), relief=tk.FLAT, padx=15, pady=5)
         btn_load.pack(side=tk.LEFT)
 
     def show_instructions(self):
-        # Texto explicado paso a paso
         info_text = (
             "GUÍA PARA DESCARGAR DATOS DE LA FEGAN:\n\n"
             "1. Ve a la página web de la FEGAN (fegan.org).\n"
@@ -126,16 +125,31 @@ class NatacionApp:
         self.dashboard_frame = tk.Frame(self.main_container, bg="white")
         self.dashboard_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        self.stats_frame = tk.Frame(self.dashboard_frame, bg="#f9f9f9", height=120, bd=1, relief=tk.SOLID)
+        # Panel de Estadísticas
+        self.stats_frame = tk.Frame(self.dashboard_frame, bg="#f9f9f9", height=130, bd=1, relief=tk.SOLID)
         self.stats_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
         self.stats_frame.pack_propagate(False)
         
-        self.lbl_stat_25 = tk.Label(self.stats_frame, text="PB 25m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
-        self.lbl_stat_25.pack(side=tk.LEFT, expand=True)
+        # --- CAMBIO: ESTRUCTURA CENTRADA ---
         
-        self.lbl_stat_50 = tk.Label(self.stats_frame, text="PB 50m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
+        # 1. Nombre del Nadador (Arriba, Centrado, Sin Emoji)
+        self.lbl_nadador = tk.Label(self.stats_frame, text="Esperando datos...", 
+                                    font=("Arial", 18, "bold"), bg="#f9f9f9", fg="#2c3e50")
+        self.lbl_nadador.pack(side=tk.TOP, pady=(15, 5)) # Pack TOP centra horizontalmente por defecto
+
+        # 2. Contenedor para los tiempos (Debajo)
+        times_frame = tk.Frame(self.stats_frame, bg="#f9f9f9")
+        times_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+
+        # PB 25m (Izquierda del centro)
+        self.lbl_stat_25 = tk.Label(times_frame, text="PB 25m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
+        self.lbl_stat_25.pack(side=tk.LEFT, expand=True) # expand=True reparte el espacio
+        
+        # PB 50m (Derecha del centro)
+        self.lbl_stat_50 = tk.Label(times_frame, text="PB 50m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
         self.lbl_stat_50.pack(side=tk.LEFT, expand=True)
 
+        # Área de Gráficos
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -215,7 +229,6 @@ class NatacionApp:
         if club != "Todos":
             df = df[df['Club'] == club]
 
-        # Filtro Fechas (DD/MM/AAAA)
         f_inicio = self.var_fecha_inicio.get()
         f_fin = self.var_fecha_fin.get()
 
@@ -236,6 +249,7 @@ class NatacionApp:
 
     def update_stats(self):
         if self.df_filtered is None or self.df_filtered.empty:
+            self.lbl_nadador.config(text="Sin datos")
             self.lbl_stat_25.config(text="PB 25m: --")
             self.lbl_stat_50.config(text="PB 50m: --")
             return
@@ -252,8 +266,10 @@ class NatacionApp:
         nadador = self.df_filtered['Nombre'].iloc[0] if not self.df_filtered.empty else "Desconocido"
         prueba = self.df_filtered['Prueba'].iloc[0] if not self.df_filtered.empty else ""
 
-        self.lbl_stat_25.config(text=f"🏊 {nadador} ({prueba})\nPB 25m: {pb_25}")
-        self.lbl_stat_50.config(text=f"\nPB 50m: {pb_50}")
+        # --- CAMBIO: Actualización de textos ---
+        self.lbl_nadador.config(text=f"{nadador} - {prueba}") # Solo Texto, Centrado
+        self.lbl_stat_25.config(text=f"PB 25m: {pb_25}")
+        self.lbl_stat_50.config(text=f"PB 50m: {pb_50}")
 
     def update_plots(self):
         for widget in self.plot_container.winfo_children():
@@ -282,7 +298,6 @@ class NatacionApp:
                             textcoords="offset points", xytext=(0,10), ha='center',
                             fontsize=9, weight='bold', color=colors.get(piscina))
 
-        # Ejes formateados
         def axis_formatter(x, pos): return self.format_seconds_to_time(x)
         ax.yaxis.set_major_formatter(FuncFormatter(axis_formatter))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
