@@ -14,7 +14,7 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics")
+        self.root.title("SwimAnalytics PRO - FEGAN Edition")
         self.root.geometry("1300x850")
         
         # --- CONFIGURACIÓN PARA MAC ---
@@ -38,36 +38,52 @@ class NatacionApp:
 
         # --- Interfaz ---
         self.create_header()
+        
+        # Contenedor principal
         self.main_container = tk.Frame(self.root, bg="white")
         self.main_container.pack(fill=tk.BOTH, expand=True)
+        
         self.create_sidebar()
         self.create_dashboard()
+        
+        # --- FIRMA DEL CREADOR (Footer) ---
+        self.create_footer()
 
     def create_header(self):
         header = tk.Frame(self.root, bg=self.bg_dark, height=70)
         header.pack(side=tk.TOP, fill=tk.X)
         header.pack_propagate(False)
 
-        lbl_title = tk.Label(header, text="SwimAnalytics", 
+        lbl_title = tk.Label(header, text="🏊 SwimAnalytics PRO", 
                              font=("Helvetica", 20, "bold"), 
                              bg=self.bg_dark, fg="white")
         lbl_title.pack(side=tk.LEFT, padx=20)
 
-        # Contenedor para los botones (Derecha)
+        # Contenedor botones
         btn_frame = tk.Frame(header, bg=self.bg_dark)
         btn_frame.pack(side=tk.RIGHT, padx=20)
 
-        # Botón Instrucciones
         btn_help = tk.Button(btn_frame, text="❓ ¿Cómo obtener el CSV?", command=self.show_instructions,
                              bg="#f39c12", fg="black",
                              font=("Arial", 10, "bold"), relief=tk.FLAT, padx=10, pady=5)
         btn_help.pack(side=tk.LEFT, padx=10)
 
-        # Botón Cargar
         btn_load = tk.Button(btn_frame, text="📂 Cargar CSV", command=self.load_csv, 
                              bg="#27ae60", fg="black",
                              font=("Arial", 11, "bold"), relief=tk.FLAT, padx=15, pady=5)
         btn_load.pack(side=tk.LEFT)
+
+    def create_footer(self):
+        # Barra inferior delgada
+        footer = tk.Frame(self.root, bg="#f2f2f2", height=30)
+        footer.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Etiqueta en la derecha
+        # CAMBIA "Xabier Guitian" POR TU NOMBRE
+        lbl_credit = tk.Label(footer, text="Aplicación creada por Xabier Guitián López", 
+                              font=("Arial", 9, "italic"), 
+                              bg="#f2f2f2", fg="#7f8c8d")
+        lbl_credit.pack(side=tk.RIGHT, padx=20, pady=5)
 
     def show_instructions(self):
         info_text = (
@@ -76,13 +92,11 @@ class NatacionApp:
             "2. Entra en el apartado 'Natación' > 'Consulta de marcas'.\n"
             "3. En el filtro, busca por 'Apellido Apellido, Nombre'.\n"
             "4. Selecciona la prueba que quieras analizar.\n"
-            "5. IMPORTANTE: Selecciona un rango de fechas muy amplio para obtener todo el historial.\n"
+            "5. IMPORTANTE: Selecciona un rango de fechas muy amplio.\n"
             "6. En 'Amosar os primeiros', selecciona el máximo (100) y pulsa ENVIAR.\n"
-            "7. Cuando salgan los datos, baja al final de la página.\n"
-            "8. Pulsa en el enlace: 'Exportar a táboa a CSV'.\n\n"
-            "¡Listo! Ya puedes cargar ese archivo aquí."
+            "7. Baja al final y pulsa: 'Exportar a táboa a CSV'."
         )
-        messagebox.showinfo("Instrucciones de Importación", info_text)
+        messagebox.showinfo("Ayuda", info_text)
 
     def create_sidebar(self):
         sidebar = tk.Frame(self.main_container, bg=self.bg_light, width=250, padx=15, pady=15)
@@ -92,18 +106,16 @@ class NatacionApp:
         tk.Label(sidebar, text="FILTROS", font=("Arial", 12, "bold"), 
                  bg=self.bg_light, fg="#7f8c8d").pack(anchor="w", pady=(0, 10))
 
-        # 1. Filtro Tipo
+        # Filtros...
         tk.Label(sidebar, text="Tipo de Tiempo:", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         self.combo_tipo = ttk.Combobox(sidebar, textvariable=self.var_tipo, state="readonly", 
                                        values=["Todos", "Solo Finales (N)", "Solo Parciales (S)"])
         self.combo_tipo.pack(fill=tk.X, pady=(0, 15))
 
-        # 2. Filtro Club
         tk.Label(sidebar, text="Club:", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         self.combo_club = ttk.Combobox(sidebar, textvariable=self.var_club, state="readonly", values=["Todos"])
         self.combo_club.pack(fill=tk.X, pady=(0, 15))
 
-        # 3. Filtro Fechas
         tk.Label(sidebar, text="Rango de Fechas (DD/MM/AAAA):", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         
         tk.Label(sidebar, text="Desde:", bg=self.bg_light, fg="#555").pack(anchor="w")
@@ -125,35 +137,30 @@ class NatacionApp:
         self.dashboard_frame = tk.Frame(self.main_container, bg="white")
         self.dashboard_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Panel de Estadísticas
+        # Stats
         self.stats_frame = tk.Frame(self.dashboard_frame, bg="#f9f9f9", height=130, bd=1, relief=tk.SOLID)
         self.stats_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
         self.stats_frame.pack_propagate(False)
         
-        # --- CAMBIO: ESTRUCTURA CENTRADA ---
-        
-        # 1. Nombre del Nadador (Arriba, Centrado, Sin Emoji)
+        # Nombre centrado
         self.lbl_nadador = tk.Label(self.stats_frame, text="Esperando datos...", 
                                     font=("Arial", 18, "bold"), bg="#f9f9f9", fg="#2c3e50")
-        self.lbl_nadador.pack(side=tk.TOP, pady=(15, 5)) # Pack TOP centra horizontalmente por defecto
+        self.lbl_nadador.pack(side=tk.TOP, pady=(15, 5))
 
-        # 2. Contenedor para los tiempos (Debajo)
         times_frame = tk.Frame(self.stats_frame, bg="#f9f9f9")
         times_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-        # PB 25m (Izquierda del centro)
         self.lbl_stat_25 = tk.Label(times_frame, text="PB 25m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
-        self.lbl_stat_25.pack(side=tk.LEFT, expand=True) # expand=True reparte el espacio
+        self.lbl_stat_25.pack(side=tk.LEFT, expand=True)
         
-        # PB 50m (Derecha del centro)
         self.lbl_stat_50 = tk.Label(times_frame, text="PB 50m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
         self.lbl_stat_50.pack(side=tk.LEFT, expand=True)
 
-        # Área de Gráficos
+        # Gráfico
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-    # --- UTILIDADES ---
+    # --- LÓGICA ---
     def convert_time_to_seconds(self, time_str):
         try:
             time_str = str(time_str).strip()
@@ -215,32 +222,22 @@ class NatacionApp:
 
     def apply_filters(self):
         if self.df_original is None: return
-
         df = self.df_original.copy()
 
-        # Filtros
         tipo = self.var_tipo.get()
-        if tipo == "Solo Finales (N)":
-            df = df[df['CodigoExtra'] == 'N']
-        elif tipo == "Solo Parciales (S)":
-            df = df[df['CodigoExtra'] == 'S']
+        if tipo == "Solo Finales (N)": df = df[df['CodigoExtra'] == 'N']
+        elif tipo == "Solo Parciales (S)": df = df[df['CodigoExtra'] == 'S']
 
         club = self.var_club.get()
-        if club != "Todos":
-            df = df[df['Club'] == club]
+        if club != "Todos": df = df[df['Club'] == club]
 
         f_inicio = self.var_fecha_inicio.get()
         f_fin = self.var_fecha_fin.get()
-
         try:
-            if f_inicio:
-                date_start = pd.to_datetime(f_inicio, dayfirst=True)
-                df = df[df['Fecha'] >= date_start]
-            if f_fin:
-                date_end = pd.to_datetime(f_fin, dayfirst=True)
-                df = df[df['Fecha'] <= date_end]
+            if f_inicio: df = df[df['Fecha'] >= pd.to_datetime(f_inicio, dayfirst=True)]
+            if f_fin: df = df[df['Fecha'] <= pd.to_datetime(f_fin, dayfirst=True)]
         except:
-            messagebox.showwarning("Fechas", "Por favor usa el formato DD/MM/AAAA")
+            messagebox.showwarning("Fechas", "Usa formato DD/MM/AAAA")
 
         self.df_filtered = df
         self.lbl_info_count.config(text=f"Registros visibles: {len(df)}")
@@ -257,26 +254,21 @@ class NatacionApp:
         df_25 = self.df_filtered[self.df_filtered['TipoPiscina'] == '25m']
         df_50 = self.df_filtered[self.df_filtered['TipoPiscina'] == '50m']
 
-        min_25 = df_25['Tiempo'].min()
-        min_50 = df_50['Tiempo'].min()
-        
-        pb_25 = self.format_seconds_to_time(min_25)
-        pb_50 = self.format_seconds_to_time(min_50)
+        pb_25 = self.format_seconds_to_time(df_25['Tiempo'].min())
+        pb_50 = self.format_seconds_to_time(df_50['Tiempo'].min())
 
-        nadador = self.df_filtered['Nombre'].iloc[0] if not self.df_filtered.empty else "Desconocido"
-        prueba = self.df_filtered['Prueba'].iloc[0] if not self.df_filtered.empty else ""
+        nadador = self.df_filtered['Nombre'].iloc[0]
+        prueba = self.df_filtered['Prueba'].iloc[0]
 
-        # --- CAMBIO: Actualización de textos ---
-        self.lbl_nadador.config(text=f"{nadador} - {prueba}") # Solo Texto, Centrado
+        self.lbl_nadador.config(text=f"{nadador} - {prueba}")
         self.lbl_stat_25.config(text=f"PB 25m: {pb_25}")
         self.lbl_stat_50.config(text=f"PB 50m: {pb_50}")
 
     def update_plots(self):
-        for widget in self.plot_container.winfo_children():
-            widget.destroy()
+        for widget in self.plot_container.winfo_children(): widget.destroy()
 
         if self.df_filtered is None or self.df_filtered.empty:
-            tk.Label(self.plot_container, text="No hay datos con estos filtros", bg="white", fg="red").pack(pady=50)
+            tk.Label(self.plot_container, text="No hay datos", bg="white", fg="red").pack(pady=50)
             return
 
         fig = plt.Figure(figsize=(8, 6), dpi=100, facecolor='white')
@@ -289,17 +281,14 @@ class NatacionApp:
                 ax.plot(data['Fecha'], data['Tiempo'], marker='o', linestyle='-', 
                         label=f'Piscina {piscina}', color=colors.get(piscina))
                 
-                min_idx = data['Tiempo'].idxmin()
-                best_row = data.loc[min_idx]
-                tiempo_str = self.format_seconds_to_time(best_row['Tiempo'])
-                
-                ax.annotate(f"{tiempo_str}", 
-                            (best_row['Fecha'], best_row['Tiempo']),
+                # Etiqueta mejor marca
+                best = data.loc[data['Tiempo'].idxmin()]
+                ax.annotate(self.format_seconds_to_time(best['Tiempo']), 
+                            (best['Fecha'], best['Tiempo']),
                             textcoords="offset points", xytext=(0,10), ha='center',
                             fontsize=9, weight='bold', color=colors.get(piscina))
 
-        def axis_formatter(x, pos): return self.format_seconds_to_time(x)
-        ax.yaxis.set_major_formatter(FuncFormatter(axis_formatter))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: self.format_seconds_to_time(x)))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
         fig.autofmt_xdate(rotation=45)
 
