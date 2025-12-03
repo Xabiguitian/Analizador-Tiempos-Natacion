@@ -7,6 +7,7 @@ from matplotlib.ticker import FuncFormatter
 import matplotlib.dates as mdates
 import seaborn as sns
 from datetime import datetime
+import numbers 
 
 # Configuración de estilo visual
 sns.set_theme(style="whitegrid")
@@ -14,7 +15,7 @@ sns.set_theme(style="whitegrid")
 class NatacionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SwimAnalytics")
+        self.root.title("SwimAnalytics PRO - Final Version")
         self.root.geometry("1300x850")
         
         # --- CONFIGURACIÓN PARA MAC ---
@@ -30,36 +31,34 @@ class NatacionApp:
         # --- Variables ---
         self.df_original = None 
         self.df_filtered = None
+        self.lines_data = [] 
+        self.annot = None 
         
         self.var_tipo = tk.StringVar(value="Solo Finales (N)")
         self.var_club = tk.StringVar(value="Todos")
         self.var_fecha_inicio = tk.StringVar()
         self.var_fecha_fin = tk.StringVar()
 
-        # --- Interfaz ---
+        # --- ESTRUCTURA ---
         self.create_header()
+        self.create_footer()
         
-        # Contenedor principal
         self.main_container = tk.Frame(self.root, bg="white")
-        self.main_container.pack(fill=tk.BOTH, expand=True)
+        self.main_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
         self.create_sidebar()
         self.create_dashboard()
-        
-        # --- FIRMA DEL CREADOR (Footer) ---
-        self.create_footer()
 
     def create_header(self):
         header = tk.Frame(self.root, bg=self.bg_dark, height=70)
         header.pack(side=tk.TOP, fill=tk.X)
         header.pack_propagate(False)
 
-        lbl_title = tk.Label(header, text="SwimAnalytics", 
+        lbl_title = tk.Label(header, text="🏊 SwimAnalytics PRO", 
                              font=("Helvetica", 20, "bold"), 
                              bg=self.bg_dark, fg="white")
         lbl_title.pack(side=tk.LEFT, padx=20)
 
-        # Contenedor botones
         btn_frame = tk.Frame(header, bg=self.bg_dark)
         btn_frame.pack(side=tk.RIGHT, padx=20)
 
@@ -74,13 +73,11 @@ class NatacionApp:
         btn_load.pack(side=tk.LEFT)
 
     def create_footer(self):
-        # Barra inferior delgada
         footer = tk.Frame(self.root, bg="#f2f2f2", height=30)
         footer.pack(side=tk.BOTTOM, fill=tk.X)
         
-        # Etiqueta en la derecha
-        # CAMBIA "Xabier Guitian" POR TU NOMBRE
-        lbl_credit = tk.Label(footer, text="Aplicación creada por Xabier Guitián López", 
+        # CAMBIA AQUÍ TU NOMBRE SI ES NECESARIO
+        lbl_credit = tk.Label(footer, text="Aplicación creada por Xabier Guitian", 
                               font=("Arial", 9, "italic"), 
                               bg="#f2f2f2", fg="#7f8c8d")
         lbl_credit.pack(side=tk.RIGHT, padx=20, pady=5)
@@ -92,7 +89,7 @@ class NatacionApp:
             "2. Entra en el apartado 'Natación' > 'Consulta de marcas'.\n"
             "3. En el filtro, busca por 'Apellido Apellido, Nombre'.\n"
             "4. Selecciona la prueba que quieras analizar.\n"
-            "5. IMPORTANTE: Selecciona un rango de fechas muy amplio.\n"
+            "5. Selecciona un rango de fechas muy amplio.\n"
             "6. En 'Amosar os primeiros', selecciona el máximo (100) y pulsa ENVIAR.\n"
             "7. Baja al final y pulsa: 'Exportar a táboa a CSV'."
         )
@@ -106,7 +103,6 @@ class NatacionApp:
         tk.Label(sidebar, text="FILTROS", font=("Arial", 12, "bold"), 
                  bg=self.bg_light, fg="#7f8c8d").pack(anchor="w", pady=(0, 10))
 
-        # Filtros...
         tk.Label(sidebar, text="Tipo de Tiempo:", bg=self.bg_light, fg="black", font=("Arial", 10, "bold")).pack(anchor="w")
         self.combo_tipo = ttk.Combobox(sidebar, textvariable=self.var_tipo, state="readonly", 
                                        values=["Todos", "Solo Finales (N)", "Solo Parciales (S)"])
@@ -137,12 +133,11 @@ class NatacionApp:
         self.dashboard_frame = tk.Frame(self.main_container, bg="white")
         self.dashboard_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Stats
+        # Stats Panel
         self.stats_frame = tk.Frame(self.dashboard_frame, bg="#f9f9f9", height=130, bd=1, relief=tk.SOLID)
         self.stats_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
         self.stats_frame.pack_propagate(False)
         
-        # Nombre centrado
         self.lbl_nadador = tk.Label(self.stats_frame, text="Esperando datos...", 
                                     font=("Arial", 18, "bold"), bg="#f9f9f9", fg="#2c3e50")
         self.lbl_nadador.pack(side=tk.TOP, pady=(15, 5))
@@ -156,7 +151,7 @@ class NatacionApp:
         self.lbl_stat_50 = tk.Label(times_frame, text="PB 50m: --", font=("Arial", 14), bg="#f9f9f9", fg="black")
         self.lbl_stat_50.pack(side=tk.LEFT, expand=True)
 
-        # Gráfico
+        # Gráfico Container
         self.plot_container = tk.Frame(self.dashboard_frame, bg="white")
         self.plot_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -264,6 +259,44 @@ class NatacionApp:
         self.lbl_stat_25.config(text=f"PB 25m: {pb_25}")
         self.lbl_stat_50.config(text=f"PB 50m: {pb_50}")
 
+    def on_hover(self, event):
+        vis = self.annot.get_visible()
+        if event.inaxes == self.ax:
+            for line, data_subset in self.lines_data:
+                cont, ind = line.contains(event)
+                if cont:
+                    idx = ind["ind"][0]
+                    x, y = line.get_data()
+                    
+                    raw_date = x[idx]
+                    if isinstance(raw_date, numbers.Number):
+                         fecha_obj = mdates.num2date(raw_date)
+                    else:
+                         fecha_obj = pd.to_datetime(raw_date)
+                    fecha_str = fecha_obj.strftime("%d/%m/%Y")
+                    
+                    tiempo_val = y[idx]
+                    tiempo_str = self.format_seconds_to_time(tiempo_val)
+                    piscina_label = line.get_label()
+                    
+                    try:
+                        lugar = data_subset.iloc[idx]['Lugar']
+                    except:
+                        lugar = "Desconocido"
+
+                    # CAMBIO: Usamos texto en lugar de emoji para evitar errores
+                    self.annot.xy = (x[idx], y[idx])
+                    text = f"{fecha_str}\n{tiempo_str}\n{piscina_label}\nLugar: {lugar}"
+                    self.annot.set_text(text)
+                    self.annot.get_bbox_patch().set_alpha(0.8)
+                    self.annot.set_visible(True)
+                    self.canvas.draw_idle()
+                    return
+
+        if vis:
+            self.annot.set_visible(False)
+            self.canvas.draw_idle()
+
     def update_plots(self):
         for widget in self.plot_container.winfo_children(): widget.destroy()
 
@@ -272,36 +305,47 @@ class NatacionApp:
             return
 
         fig = plt.Figure(figsize=(8, 6), dpi=100, facecolor='white')
-        ax = fig.add_subplot(111)
+        self.ax = fig.add_subplot(111)
         colors = {'25m': '#2980b9', '50m': '#e67e22', 'Otros': 'gray'}
 
+        self.lines_data = []
+
         for piscina in ['25m', '50m']:
-            data = self.df_filtered[self.df_filtered['TipoPiscina'] == piscina]
-            if not data.empty:
-                ax.plot(data['Fecha'], data['Tiempo'], marker='o', linestyle='-', 
-                        label=f'Piscina {piscina}', color=colors.get(piscina))
+            data_subset = self.df_filtered[self.df_filtered['TipoPiscina'] == piscina]
+            
+            if not data_subset.empty:
+                line, = self.ax.plot(data_subset['Fecha'], data_subset['Tiempo'], marker='o', linestyle='-', 
+                        label=f'Piscina {piscina}', color=colors.get(piscina), picker=5)
                 
-                # Etiqueta mejor marca
-                best = data.loc[data['Tiempo'].idxmin()]
-                ax.annotate(self.format_seconds_to_time(best['Tiempo']), 
+                self.lines_data.append((line, data_subset))
+                
+                best = data_subset.loc[data_subset['Tiempo'].idxmin()]
+                self.ax.annotate(self.format_seconds_to_time(best['Tiempo']), 
                             (best['Fecha'], best['Tiempo']),
                             textcoords="offset points", xytext=(0,10), ha='center',
                             fontsize=9, weight='bold', color=colors.get(piscina))
 
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: self.format_seconds_to_time(x)))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+        self.annot = self.ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
+                                bbox=dict(boxstyle="round", fc="white", ec="black", alpha=0.8),
+                                arrowprops=dict(arrowstyle="->"))
+        self.annot.set_visible(False)
+
+        self.ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: self.format_seconds_to_time(x)))
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
         fig.autofmt_xdate(rotation=45)
 
-        ax.set_title("Evolución de Tiempos", fontsize=12, fontweight='bold', color='black')
-        ax.set_ylabel("Tiempo", color='black')
-        ax.tick_params(colors='black', labelcolor='black')
-        ax.legend()
-        ax.grid(True, linestyle='--', alpha=0.3)
-        ax.set_facecolor('#f9f9f9')
+        self.ax.set_title("Evolución de Tiempos (Pasa el ratón por los puntos)", fontsize=12, fontweight='bold', color='black')
+        self.ax.set_ylabel("Tiempo", color='black')
+        self.ax.tick_params(colors='black', labelcolor='black')
+        self.ax.legend()
+        self.ax.grid(True, linestyle='--', alpha=0.3)
+        self.ax.set_facecolor('#f9f9f9')
 
-        canvas = FigureCanvasTkAgg(fig, master=self.plot_container)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.canvas = FigureCanvasTkAgg(fig, master=self.plot_container)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
 
 if __name__ == "__main__":
     root = tk.Tk()
